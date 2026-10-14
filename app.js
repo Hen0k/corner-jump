@@ -29,15 +29,23 @@
   }
   const place = (el, k) => { const [x, y] = G.parse(k); el.style.left = x * 12.5 + "%"; el.style.top = (7 - y) * 12.5 + "%"; };
 
-  // Level tabs
-  for (const l of G.LEVELS) {
-    const b = document.createElement("button");
-    b.type = "button"; b.id = "level-" + l.id; b.setAttribute("role", "tab");
-    b.textContent = "Level " + (G.LEVELS.indexOf(l) + 1);
-    b.title = l.title;
-    b.addEventListener("click", () => { level = l; store.set("level", l.id); start(); });
-    $("levels").appendChild(b);
+  // Level picker: a dropdown plus previous and next buttons.
+  const levelSel = $("level");
+  const solvedMark = l => Object.keys((store.get("solved") || {})[l.id] || {}).length ? " ✓" : "";
+  function fillLevels() {
+    levelSel.innerHTML = "";
+    G.LEVELS.forEach((l, i) => {
+      const o = document.createElement("option");
+      o.value = l.id; o.textContent = `Level ${i + 1} · ${l.tier} · ${l.title}${solvedMark(l)}`;
+      levelSel.appendChild(o);
+    });
   }
+  const goLevel = l => { if (!l) return; level = l; store.set("level", l.id); start(); };
+  const step = d => goLevel(G.LEVELS[G.LEVELS.indexOf(level) + d]);
+  levelSel.addEventListener("change", () => goLevel(G.LEVELS.find(l => l.id === levelSel.value)));
+  $("prev").addEventListener("click", () => step(-1));
+  $("next").addEventListener("click", () => step(1));
+  fillLevels();
 
   function start() {
     Fx.stop();
@@ -48,7 +56,9 @@
       const el = document.createElement("div"); el.className = "piece"; place(el, k);
       boardEl.appendChild(el); pieceEls.set(k, el);
     }
-    document.querySelectorAll(".levels button").forEach(b => b.setAttribute("aria-selected", b.id === "level-" + level.id));
+    levelSel.value = level.id;
+    const i = G.LEVELS.indexOf(level);
+    $("prev").disabled = i === 0; $("next").disabled = i === G.LEVELS.length - 1;
     hideMain();
     render();
   }
@@ -88,7 +98,7 @@
     if (pieces.size === 1) {
       phase = "won"; haptic("notify", "success");
       Fx.confetti(); Fx.celebrate();
-      const solved = store.get("solved") || {}; (solved[level.id] = solved[level.id] || {})[history[0].removed] = true; store.set("solved", solved);
+      const solved = store.get("solved") || {}; (solved[level.id] = solved[level.id] || {})[history[0].removed] = true; store.set("solved", solved); fillLevels(); levelSel.value = level.id;
       const next = G.LEVELS[G.LEVELS.indexOf(level) + 1];
       showMain(next ? "Next level" : "Play again", () => { if (next) { level = next; store.set("level", next.id); } start(); });
     } else if (!G.jumps(pieces).length) {
@@ -114,9 +124,13 @@
   function hint() {
     if (phase === "pick") { toast("Bright pieces are openings you can win from. Tap one."); return; }
     if (phase !== "play") return;
-    const sol = G.solve(pieces);
-    if (!sol) { toast("There's no way to win from here. Undo to back up."); haptic("notify", "warning"); return; }
-    hintMove = sol[0]; selected = hintMove.from; render();
+    // Big boards can take a moment to search, so let the screen update first.
+    $("hint").disabled = true;
+    setTimeout(() => {
+      const sol = G.solve(pieces);
+      if (!sol) { toast("There's no way to win from here. Undo to back up."); haptic("notify", "warning"); return render(); }
+      hintMove = sol[0]; selected = hintMove.from; render();
+    }, 20);
   }
 
   function render() {
