@@ -14,7 +14,9 @@ Telegram needs an HTTPS address. Any static host works, for example:
 4. Open the game at `https://t.me/<bot username>/<short name>`.
 
 ## Levels
-Levels live in `LEVELS` in `game.js`. Each level is a list of starting squares. The app runs the solver at startup and only lets players pick openings that can be won.
+Levels live in `LEVELS` in `game.js`, ordered from easiest to hardest. Each level lists its starting squares (`pieces`) and the openings that can be won (`open`). Players can only pick a winnable opening.
+
+The levels came from `tools/levels/search.py`, which tries diamonds, wedges, crosses, diagonal bands and corner triangles on the dark squares and keeps the shapes that can be cleared to one piece. `tools/levels/rate.py` adds a difficulty score: the chance that random moves win. `tools/levels/catalog.json` is the result the levels were built from.
 
 ## Effects
 `fx.js` draws the win confetti on a canvas and plays `sounds/win.mp3` on a win and `sounds/fahh.mp3` on a deadlock. If a clip is missing, it falls back to a sound synthesized with the Web Audio API. The 🔊 button mutes sound, and the choice is remembered. Restart and Undo stop a clip that is still playing.

@@ -11,7 +11,11 @@
 <main class="app">
   <header class="top">
     <h1>Corner Jump</h1>
-    <div class="levels" id="levels" role="tablist" aria-label="Levels"></div>
+    <div class="levels">
+      <button type="button" id="prev" aria-label="Previous level">‹</button>
+      <select id="level" aria-label="Level"></select>
+      <button type="button" id="next" aria-label="Next level">›</button>
+    </div>
   </header>
 
   <p class="status" id="status" aria-live="polite"></p>
