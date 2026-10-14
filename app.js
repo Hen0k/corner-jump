@@ -40,6 +40,7 @@
   }
 
   function start() {
+    Fx.stop();
     phase = "pick"; pieces = new Set(level.pieces); history = []; selected = null; hintMove = null;
     for (const el of pieceEls.values()) el.remove();
     pieceEls.clear();
@@ -100,6 +101,7 @@
 
   function undo() {
     const last = history.pop(); if (!last) return;
+    Fx.stop();
     pieces = last.pieces; selected = null; hintMove = null;
     phase = last.removed ? "pick" : "play";
     // rebuild piece elements without animation

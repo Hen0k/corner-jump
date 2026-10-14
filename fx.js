@@ -22,26 +22,27 @@
   }
 
   // A short rising fanfare: C-E-G arpeggio into a held major chord, plus a sparkle.
-  function celebrate() {
-    const a = !muted && audio(); if (!a) return;
+  function celebrate() { const a = !muted && audio(); if (a) playClip(a, "win", synthCelebrate); }
+  function synthCelebrate(a) {
     const t = a.currentTime + 0.05;
     [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => tone(a, f, t + i * 0.11, 0.25, "triangle", 0.22));
     [523.25, 659.25, 783.99, 1046.5].forEach(f => tone(a, f, t + 0.48, 0.9, "triangle", 0.12));
     [2093, 2637, 3136, 2637, 3136].forEach((f, i) => tone(a, f, t + 0.5 + i * 0.07, 0.15, "sine", 0.05));
   }
 
-  // The deadlock sound plays sounds/fahh.mp3 when that file exists, and falls back to the synthesized version.
-  let fahhBuf = null;
-  fetch("sounds/fahh.mp3").then(r => r.ok ? r.arrayBuffer() : null).then(b => { fahhBuf = b; }).catch(() => {});
-  function fahh() {
-    const a = !muted && audio(); if (!a) return;
-    if (fahhBuf) {
-      const bytes = fahhBuf.slice(0);
-      a.decodeAudioData(bytes, decoded => { const s = a.createBufferSource(); s.buffer = decoded; s.connect(a.destination); s.start(); }, () => synthFahh(a));
-      return;
-    }
-    synthFahh(a);
+  // Win and deadlock clips live in sounds/. If a file is missing or can't be decoded, the synthesized version plays.
+  const clips = {}, playing = new Set();
+  for (const [name, url] of [["win", "sounds/win.mp3"], ["fahh", "sounds/fahh.mp3"]])
+    fetch(url).then(r => r.ok ? r.arrayBuffer() : null).then(b => { if (b) clips[name] = b; }).catch(() => {});
+  function playClip(a, name, fallback) {
+    const clip = clips[name];
+    if (!clip) return fallback(a);
+    const go = buf => { clips[name] = buf; const src = a.createBufferSource(); src.buffer = buf; src.connect(a.destination); src.onended = () => playing.delete(src); playing.add(src); src.start(); };
+    if (clip instanceof AudioBuffer) return go(clip);
+    a.decodeAudioData(clip.slice(0), go, () => { delete clips[name]; fallback(a); });
   }
+  function stop() { for (const src of playing) { try { src.stop(); } catch (e) {} } playing.clear(); }
+  function fahh() { const a = !muted && audio(); if (a) playClip(a, "fahh", synthFahh); }
 
   // A synthesized take on the meme "Fahh": a breathy "f" into a falling, voice-like "aaah".
   function synthFahh(a) {
@@ -100,7 +101,7 @@
     })(t0);
   }
 
-  function setMuted(m) { muted = m; try { localStorage.setItem("cj:muted", m ? "1" : "0"); } catch (e) {} }
+  function setMuted(m) { muted = m; if (m) stop(); try { localStorage.setItem("cj:muted", m ? "1" : "0"); } catch (e) {} }
 
-  root.CornerJumpFx = { confetti, celebrate, fahh, setMuted, isMuted: () => muted };
+  root.CornerJumpFx = { confetti, celebrate, fahh, stop, setMuted, isMuted: () => muted };
 })(window);

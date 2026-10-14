@@ -1,1 +1,1 @@
-Put the deadlock clip here as `fahh.mp3`. If the file is missing, the game plays its built-in synthesized sound instead.
+`win.mp3` plays when a level is cleared and `fahh.mp3` plays on a deadlock. Both were supplied by Henok and converted from m4a. If a file is missing, the game plays its built-in synthesized sound instead.
