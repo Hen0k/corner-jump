@@ -30,9 +30,21 @@
     [2093, 2637, 3136, 2637, 3136].forEach((f, i) => tone(a, f, t + 0.5 + i * 0.07, 0.15, "sine", 0.05));
   }
 
-  // A synthesized take on the meme "Fahh": a breathy "f" into a falling, voice-like "aaah".
+  // The deadlock sound plays sounds/fahh.mp3 when that file exists, and falls back to the synthesized version.
+  let fahhBuf = null;
+  fetch("sounds/fahh.mp3").then(r => r.ok ? r.arrayBuffer() : null).then(b => { fahhBuf = b; }).catch(() => {});
   function fahh() {
     const a = !muted && audio(); if (!a) return;
+    if (fahhBuf) {
+      const bytes = fahhBuf.slice(0);
+      a.decodeAudioData(bytes, decoded => { const s = a.createBufferSource(); s.buffer = decoded; s.connect(a.destination); s.start(); }, () => synthFahh(a));
+      return;
+    }
+    synthFahh(a);
+  }
+
+  // A synthesized take on the meme "Fahh": a breathy "f" into a falling, voice-like "aaah".
+  function synthFahh(a) {
     const t = a.currentTime + 0.05;
     // "f": a burst of filtered noise
     const len = Math.floor(a.sampleRate * 0.18), buf = a.createBuffer(1, len, a.sampleRate), d = buf.getChannelData(0);

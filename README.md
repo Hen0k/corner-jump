@@ -17,4 +17,4 @@ Telegram needs an HTTPS address. Any static host works, for example:
 Levels live in `LEVELS` in `game.js`. Each level is a list of starting squares. The app runs the solver at startup and only lets players pick openings that can be won.
 
 ## Effects
-`fx.js` draws the win confetti on a canvas and synthesizes both sounds with the Web Audio API, so there are no audio files or licenses involved. The deadlock sound is a homemade imitation of the "Fahh" meme. The 🔊 button mutes sound, and the choice is remembered.
+`fx.js` draws the win confetti on a canvas and synthesizes both sounds with the Web Audio API, so there are no audio files or licenses involved. The deadlock sound plays `sounds/fahh.mp3` if that file exists, and otherwise plays a homemade imitation of the "Fahh" meme. The 🔊 button mutes sound, and the choice is remembered.
