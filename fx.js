@@ -1,15 +1,34 @@
-// Win confetti and the win/deadlock sounds. Everything is drawn and synthesized here, so there are no asset files.
+// Win confetti and the win/deadlock sounds. Clips come from sounds/, with synthesized fallbacks.
 (function (root) {
   let ctx = null, muted = false;
   try { muted = localStorage.getItem("cj:muted") === "1"; } catch (e) {}
 
-  // Browsers only allow audio after a tap, so the context is created or resumed on the first touch.
   function audio() {
-    if (!ctx) { const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return null; ctx = new AC(); }
-    if (ctx.state === "suspended") ctx.resume();
+    if (!ctx) { const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return null; try { ctx = new AC(); } catch (e) { return null; } }
+    if (ctx.state !== "running") { try { ctx.resume(); } catch (e) {} }
     return ctx;
   }
-  window.addEventListener("pointerdown", audio, { once: true, capture: true });
+
+  // Webviews (Telegram Desktop, iOS) only allow audio from a tap, click or key press, and some ignore pointerdown.
+  // So every such gesture tries to unlock audio until it works: resume Web Audio with a silent blip, and
+  // prime each clip element with a muted play.
+  const GESTURES = ["pointerdown", "touchend", "click", "keydown"];
+  let primed = false;
+  function unlock() {
+    const a = audio();
+    if (a) { try { const s = a.createBufferSource(); s.buffer = a.createBuffer(1, 1, 22050); s.connect(a.destination); s.start(0); } catch (e) {} }
+    if (!primed) {
+      primed = true;
+      for (const el of Object.values(els)) {
+        el.muted = true;
+        const p = el.play();
+        const done = () => { el.pause(); el.currentTime = 0; el.muted = false; };
+        if (p && p.then) p.then(done, () => { el.muted = false; primed = false; }); else done();
+      }
+    }
+    if (a && a.state === "running" && primed) GESTURES.forEach(g => window.removeEventListener(g, unlock, true));
+  }
+  GESTURES.forEach(g => window.addEventListener(g, unlock, true));
 
   function tone(a, freq, start, dur, type, gain) {
     const o = a.createOscillator(), g = a.createGain();
@@ -22,7 +41,7 @@
   }
 
   // A short rising fanfare: C-E-G arpeggio into a held major chord, plus a sparkle.
-  function celebrate() { const a = !muted && audio(); if (a) playClip(a, "win", synthCelebrate); }
+  function celebrate() { if (!muted) playClip(audio(), "win", synthCelebrate); }
   function synthCelebrate(a) {
     const t = a.currentTime + 0.05;
     [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => tone(a, f, t + i * 0.11, 0.25, "triangle", 0.22));
@@ -30,19 +49,37 @@
     [2093, 2637, 3136, 2637, 3136].forEach((f, i) => tone(a, f, t + 0.5 + i * 0.07, 0.15, "sine", 0.05));
   }
 
-  // Win and deadlock clips live in sounds/. If a file is missing or can't be decoded, the synthesized version plays.
-  const clips = {}, playing = new Set();
-  for (const [name, url] of [["win", "sounds/win.mp3"], ["fahh", "sounds/fahh.mp3"]])
+  // Win and deadlock clips live in sounds/. They play through <audio> elements first, which webviews handle most
+  // reliably, then through Web Audio, and last through the synthesized versions.
+  const URLS = { win: "sounds/win.mp3", fahh: "sounds/fahh.mp3" };
+  const els = {}, clips = {}, playing = new Set();
+  for (const [name, url] of Object.entries(URLS)) {
+    const el = new Audio(url); el.preload = "auto"; els[name] = el;
     fetch(url).then(r => r.ok ? r.arrayBuffer() : null).then(b => { if (b) clips[name] = b; }).catch(() => {});
+  }
   function playClip(a, name, fallback) {
+    const el = els[name];
+    try {
+      el.muted = false; el.currentTime = 0;
+      const p = el.play();
+      if (p && p.catch) p.catch(() => webAudioClip(a, name, fallback));
+      return;
+    } catch (e) { webAudioClip(a, name, fallback); }
+  }
+  function webAudioClip(a, name, fallback) {
+    if (!a) return;
     const clip = clips[name];
     if (!clip) return fallback(a);
     const go = buf => { clips[name] = buf; const src = a.createBufferSource(); src.buffer = buf; src.connect(a.destination); src.onended = () => playing.delete(src); playing.add(src); src.start(); };
     if (clip instanceof AudioBuffer) return go(clip);
     a.decodeAudioData(clip.slice(0), go, () => { delete clips[name]; fallback(a); });
   }
-  function stop() { for (const src of playing) { try { src.stop(); } catch (e) {} } playing.clear(); }
-  function fahh() { const a = !muted && audio(); if (a) playClip(a, "fahh", synthFahh); }
+  function stop() {
+    for (const el of Object.values(els)) { try { el.pause(); el.currentTime = 0; } catch (e) {} }
+    for (const src of playing) { try { src.stop(); } catch (e) {} }
+    playing.clear();
+  }
+  function fahh() { if (!muted) playClip(audio(), "fahh", synthFahh); }
 
   // A synthesized take on the meme "Fahh": a breathy "f" into a falling, voice-like "aaah".
   function synthFahh(a) {
