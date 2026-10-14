@@ -51,7 +51,7 @@
 
   // Win and deadlock clips live in sounds/. They play through <audio> elements first, which webviews handle most
   // reliably, then through Web Audio, and last through the synthesized versions.
-  const URLS = { win: "sounds/win.mp3?v=7", fahh: "sounds/fahh.mp3?v=7" };
+  const URLS = { win: "sounds/win.mp3?v=8", fahh: "sounds/fahh.mp3?v=8" };
   const els = {}, clips = {}, playing = new Set();
   for (const [name, url] of Object.entries(URLS)) {
     const el = new Audio(url); el.preload = "auto"; els[name] = el;

@@ -16,6 +16,8 @@
 
   let level = G.LEVELS.find(l => l.id === store.get("level")) || G.LEVELS[0];
   let phase, pieces, history, selected, hintMove;
+  // Blind mode hides every hint: openings aren't marked, legal landing squares aren't shown, and Hint is off.
+  let blind = store.get("blind") === true;
   const pieceEls = new Map(); // square -> element
 
   // Board cells, rank 8 at the top.
@@ -66,7 +68,7 @@
   function tap(k) {
     if (phase === "pick") {
       if (!pieces.has(k)) return;
-      if (!openings[level.id].get(k)) { toast("This opening can't be cleared. Pick a brighter piece."); haptic("notify", "error"); return; }
+      if (!blind && !openings[level.id].get(k)) { toast("This opening can't be cleared. Pick a brighter piece."); haptic("notify", "error"); return; }
       history.push({ pieces: new Set(pieces), removed: k });
       pieces.delete(k);
       const el = pieceEls.get(k); el.classList.add("gone"); setTimeout(() => el.remove(), 250); pieceEls.delete(k);
@@ -78,6 +80,11 @@
     if (selected) {
       const m = moves.find(m => m.from === selected && m.to === k);
       if (m) return jump(m);
+    }
+    if (blind) {
+      if (pieces.has(k)) { selected = selected === k ? null : k; haptic("impact", "light"); }
+      else if (selected) { toast("That's not a legal jump."); haptic("notify", "warning"); }
+      return render();
     }
     if (pieces.has(k)) {
       if (!moves.some(m => m.from === k)) { selected = null; toast("That piece has no jump right now."); haptic("notify", "warning"); return render(); }
@@ -122,6 +129,7 @@
   }
 
   function hint() {
+    if (blind) return;
     if (phase === "pick") { toast("Bright pieces are openings you can win from. Tap one."); return; }
     if (phase !== "play") return;
     // Big boards can take a moment to search, so let the screen update first.
@@ -136,23 +144,27 @@
   function render() {
     const moves = phase === "play" ? G.jumps(pieces) : [];
     for (const [k, c] of cells) {
-      c.classList.toggle("target", !!selected && moves.some(m => m.from === selected && m.to === k));
+      c.classList.toggle("target", !blind && !!selected && moves.some(m => m.from === selected && m.to === k));
       c.classList.toggle("hint", !!hintMove && hintMove.to === k);
     }
     for (const [k, el] of pieceEls) {
       el.classList.toggle("selected", k === selected);
-      el.classList.toggle("locked", phase === "pick" && !openings[level.id].get(k));
+      el.classList.toggle("locked", !blind && phase === "pick" && !openings[level.id].get(k));
     }
     const left = pieces.size;
     countEl.textContent = left + (left === 1 ? " piece" : " pieces") + " left";
     statusEl.textContent = {
-      pick: level.title + ". Tap a bright piece to remove it and make the opening.",
-      play: selected ? "Tap a yellow square to jump there." : "Tap a piece that can jump.",
+      pick: level.title + (blind ? ". Blind mode: tap any piece to remove it and make the opening." : ". Tap a bright piece to remove it and make the opening."),
+      play: blind ? (selected ? "Tap the empty square to jump to." : "Tap the piece you want to jump with.")
+                  : (selected ? "Tap a yellow square to jump there." : "Tap a piece that can jump."),
       won: "Cleared! One piece left. You solved " + level.title.toLowerCase() + ".",
       stuck: "No jumps left with " + left + " pieces on the board. Undo or try again.",
     }[phase];
     $("undo").disabled = !history.length;
+    $("hint").hidden = blind;
     $("hint").disabled = phase === "won" || phase === "stuck";
+    const b = $("blind");
+    b.setAttribute("aria-pressed", blind); b.textContent = blind ? "Blind: on" : "Blind: off";
   }
 
   let mainHandler = null;
@@ -170,6 +182,12 @@
   $("undo").addEventListener("click", undo);
   $("hint").addEventListener("click", hint);
   $("restart").addEventListener("click", start);
+  $("blind").addEventListener("click", () => {
+    blind = !blind; store.set("blind", blind);
+    if (blind) hintMove = null;
+    toast(blind ? "Blind mode on. No hints on any level." : "Blind mode off. Hints are back.");
+    render();
+  });
   const soundBtn = $("sound");
   const showSound = () => { const on = !Fx.isMuted(); soundBtn.textContent = on ? "🔊" : "🔇"; soundBtn.setAttribute("aria-pressed", on); soundBtn.setAttribute("aria-label", on ? "Sound on" : "Sound off"); };
   soundBtn.addEventListener("click", () => { Fx.setMuted(!Fx.isMuted()); showSound(); });

@@ -21,4 +21,7 @@ The levels came from `tools/levels/search.py`, which tries diamonds, wedges, cro
 ## Effects
 `fx.js` draws the win confetti on a canvas and plays `sounds/win.mp3` on a win and `sounds/fahh.mp3` on a deadlock. Clips play through audio elements first (most reliable in Telegram's webviews), then Web Audio, and fall back to synthesized sounds if a clip is missing. Every tap or key press tries to unlock audio until it works, because some webviews ignore the first one. The 🔊 button mutes sound, and the choice is remembered. Restart and Undo stop a clip that is still playing.
 
+## Blind mode
+The "Blind" button turns off every hint on all levels. Openings that can't be won aren't dimmed or locked, legal landing squares aren't highlighted, and the Hint button is hidden. The setting is saved on the device.
+
 When you change any file, bump the `?v=` number on the asset URLs in `index.html` and `fx.js`. Telegram Desktop keeps old copies otherwise.
