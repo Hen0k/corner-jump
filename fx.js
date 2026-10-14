@@ -51,7 +51,7 @@
 
   // Win and deadlock clips live in sounds/. They play through <audio> elements first, which webviews handle most
   // reliably, then through Web Audio, and last through the synthesized versions.
-  const URLS = { win: "sounds/win.mp3", fahh: "sounds/fahh.mp3" };
+  const URLS = { win: "sounds/win.mp3?v=6", fahh: "sounds/fahh.mp3?v=6" };
   const els = {}, clips = {}, playing = new Set();
   for (const [name, url] of Object.entries(URLS)) {
     const el = new Audio(url); el.preload = "auto"; els[name] = el;
@@ -138,7 +138,30 @@
     })(t0);
   }
 
+  // Sound check for the "Test sound" button: tries each playback route and reports what the webview allows.
+  function diagnose(report) {
+    const lines = [], add = l => { lines.push(l); report(lines.join("\n")); };
+    const tg = window.Telegram && Telegram.WebApp;
+    add("Build 6 · " + (tg && tg.platform ? "Telegram " + tg.platform + " " + tg.version : "browser"));
+    add("Muted in game: " + (muted ? "yes (tap 🔇 to unmute)" : "no"));
+    const el = new Audio(URLS.win);
+    add("mp3 support: " + (el.canPlayType("audio/mpeg") || "none"));
+    const p = el.play();
+    if (p && p.then) p.then(() => { add("Audio file: playing"); setTimeout(() => el.pause(), 1500); },
+                             e => add("Audio file: blocked (" + e.name + ": " + e.message + ")"));
+    else add("Audio file: play() returned nothing");
+    el.onerror = () => add("Audio file: load error " + (el.error ? el.error.code : "?"));
+    const a = audio();
+    if (!a) { add("Web Audio: not available"); return; }
+    add("Web Audio: " + a.state + ", " + a.sampleRate + " Hz");
+    setTimeout(() => {
+      add("Web Audio after 0.5s: " + a.state);
+      if (a.state === "running") { tone(a, 880, a.currentTime + 0.05, 0.4, "sine", 0.3); add("Played a beep through Web Audio"); }
+    }, 500);
+    fetch(URLS.fahh).then(r => add("Download of clip: HTTP " + r.status), e => add("Download of clip: failed (" + e.message + ")"));
+  }
+
   function setMuted(m) { muted = m; if (m) stop(); try { localStorage.setItem("cj:muted", m ? "1" : "0"); } catch (e) {} }
 
-  root.CornerJumpFx = { confetti, celebrate, fahh, stop, setMuted, isMuted: () => muted };
+  root.CornerJumpFx = { confetti, celebrate, fahh, stop, diagnose, setMuted, isMuted: () => muted };
 })(window);

@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
 <title>Corner Jump</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style.css?v=6">
 </head>
 <body>
 <main class="app">
@@ -42,11 +42,13 @@
       <li>Jumps go in any diagonal direction and can land anywhere on the board.</li>
       <li>Clear the board down to one piece to win. If no jump is left, you're stuck.</li>
     </ul>
+    <p class="sound-test"><button type="button" id="sound-test">Test sound</button></p>
+    <pre id="sound-diag" hidden></pre>
   </details>
 </main>
 <div class="toast" id="toast" hidden></div>
-<script src="game.js"></script>
-<script src="fx.js"></script>
-<script src="app.js"></script>
+<script src="game.js?v=6"></script>
+<script src="fx.js?v=6"></script>
+<script src="app.js?v=6"></script>
 </body>
 </html>
