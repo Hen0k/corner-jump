@@ -175,7 +175,6 @@
   soundBtn.addEventListener("click", () => { Fx.setMuted(!Fx.isMuted()); showSound(); });
   showSound();
 
-  $("sound-test").addEventListener("click", () => { const out = $("sound-diag"); out.hidden = false; Fx.diagnose(text => { out.textContent = text; }); });
   if (tg) { tg.ready(); tg.expand(); }
   start();
 })();
