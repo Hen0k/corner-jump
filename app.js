@@ -1,5 +1,5 @@
 (function () {
-  const G = window.CornerJump;
+  const G = window.CornerJump, Fx = window.CornerJumpFx;
   const tg = window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initData ? window.Telegram.WebApp : null;
   const haptic = (type, style) => { try { if (!tg) return; type === "impact" ? tg.HapticFeedback.impactOccurred(style) : tg.HapticFeedback.notificationOccurred(style); } catch (e) {} };
 
@@ -86,11 +86,13 @@
     haptic("impact", "medium");
     if (pieces.size === 1) {
       phase = "won"; haptic("notify", "success");
+      Fx.confetti(); Fx.celebrate();
       const solved = store.get("solved") || {}; (solved[level.id] = solved[level.id] || {})[history[0].removed] = true; store.set("solved", solved);
       const next = G.LEVELS[G.LEVELS.indexOf(level) + 1];
       showMain(next ? "Next level" : "Play again", () => { if (next) { level = next; store.set("level", next.id); } start(); });
     } else if (!G.jumps(pieces).length) {
       phase = "stuck"; haptic("notify", "error");
+      Fx.fahh();
       showMain("Try again", start);
     }
     render();
@@ -152,6 +154,10 @@
   $("undo").addEventListener("click", undo);
   $("hint").addEventListener("click", hint);
   $("restart").addEventListener("click", start);
+  const soundBtn = $("sound");
+  const showSound = () => { const on = !Fx.isMuted(); soundBtn.textContent = on ? "🔊" : "🔇"; soundBtn.setAttribute("aria-pressed", on); soundBtn.setAttribute("aria-label", on ? "Sound on" : "Sound off"); };
+  soundBtn.addEventListener("click", () => { Fx.setMuted(!Fx.isMuted()); showSound(); });
+  showSound();
 
   if (tg) { tg.ready(); tg.expand(); }
   start();
