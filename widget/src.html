@@ -1,0 +1,74 @@
+<!-- Corner Jump as a Telegram chat widget (Bot API 10.4). Built into widget.html by tools/widget/build.py. -->
+<style>
+body{margin:0;font:14px/1.3 system-ui,sans-serif;color:var(--tg-theme-text-color,#000);background:var(--tg-theme-bg-color,#fff)}
+#w{padding:8px 8px calc(8px + env(safe-area-inset-bottom,0px))}
+.r{display:flex;align-items:center;gap:6px}
+.r button{flex:1}
+#t{flex:3;text-align:center;font-weight:600}
+button{border:0;border-radius:8px;padding:7px 4px;font:inherit;background:var(--tg-theme-secondary-bg-color,#eee);color:inherit}
+button:disabled{color:var(--tg-theme-hint-color,#999)}
+#s{text-align:center;margin:6px 0;min-height:18px;color:var(--tg-theme-hint-color,#888)}
+#b{display:grid;grid-template-columns:repeat(8,1fr);width:100%;aspect-ratio:1;border-radius:6px;overflow:hidden;margin-bottom:8px}
+#b i{display:flex;align-items:center;justify-content:center;background:#ead7b2}
+#b .d{background:#8b5a3c}
+#b .t{background:#c9b04a}
+#b b{display:none;width:74%;height:74%;border-radius:50%;background:#f4f1ea;box-shadow:inset 0 -3px #0004}
+#b .p b{display:block}
+#b .s b{background:#ffcf3f}
+#b .x b{background:#a08a7c}
+</style>
+<div id="w">
+<div class="r"><button id="p">‹</button><span id="t"></span><button id="n">›</button></div>
+<div id="s"></div>
+<div id="b"></div>
+<div class="r"><button id="u">Undo</button><button id="r">Restart</button><button id="l"></button></div>
+</div>
+<script>
+// Each level is "<pieces>.<winnable openings>": 32-bit masks in base 36, one bit per dark square (bit = rank*4 + file/2).
+const L="__LEVELS__".split(" ").map(s=>s.split(".").map(v=>parseInt(v,36)|0)),T="__TIERS__",TN={E:"Easy",M:"Medium",H:"Hard",X:"Expert"};
+const W=window.TelegramWidget||{},$=id=>document.getElementById(id);
+const S={g(k){try{return JSON.parse(localStorage.getItem("cj"+k))}catch(e){}},s(k,v){try{localStorage.setItem("cj"+k,JSON.stringify(v))}catch(e){}}};
+const hap=(n,v)=>{try{n?W.HapticFeedback.notificationOccurred(v):W.HapticFeedback.impactOccurred(v)}catch(e){}};
+const has=(k,i)=>(k>>>i&1)==1,cnt=k=>{let n=0;for(;k;k&=k-1)n++;return n};
+// Progress: solved levels as a bitmask, kept on the device and, when the bot is running, in the message's chat data.
+const chat=()=>parseInt(W.chatData||"0",36)|0;
+let lv=S.g("l")|0,blind=!!S.g("b"),solved=S.g("s")|0,m,ph,hist,sel,msg;
+if(lv>=L.length)lv=0;
+// Board: rank 8 on top. sq[bit] is the cell of a dark square.
+const sq=[],M=[];
+for(let y=7;y>=0;y--)for(let x=0;x<8;x++){const c=document.createElement("i");if((x+y)%2==0){const i=y*4+(x>>1);c.onclick=()=>tap(i);c.appendChild(document.createElement("b"));sq[i]=c}$("b").appendChild(c)}
+// Every jump on the board as [from, over, to] bits.
+for(let y=0;y<8;y++)for(let x=y%2;x<8;x+=2)for(const[a,c]of[[1,1],[1,-1],[-1,1],[-1,-1]]){const X=x+2*a,Y=y+2*c;if(X>=0&&X<8&&Y>=0&&Y<8)M.push([y*4+(x>>1),(y+c)*4+(x+a>>1),Y*4+(X>>1)])}
+const moves=()=>M.filter(([f,o,t])=>has(m,f)&&has(m,o)&&!has(m,t));
+function start(){m=L[lv][0];ph=0;hist=[];sel=-1;S.s("l",lv);draw()}
+function go(d){lv+=d;start()}
+function tap(i){
+if(ph==0){
+if(!has(m,i))return;
+if(!blind&&!has(L[lv][1],i)){msg="That opening can't be cleared";hap(1,"error");return draw()}
+hist.push(m);m&=~(1<<i);ph=1;hap(0,"light");return end()}
+if(ph!=1)return;
+const mv=moves(),j=mv.find(([f,,t])=>f==sel&&t==i);
+if(j){hist.push(m);m^=1<<j[0]|1<<j[1]|1<<j[2];sel=-1;hap(0,"medium");return end()}
+const can=mv.some(([f])=>f==i);
+if(has(m,i)&&!can&&!blind)msg="No jump from there";
+sel=can&&sel!=i?i:-1;draw()}
+function end(){
+if(cnt(m)==1){ph=2;hap(1,"success");solved|=1<<lv;S.s("s",solved);
+// Must run inside the tap. The bot saves the mask into this message's chat data.
+if(W.viewer&&W.request)W.request("w:"+((solved|chat())>>>0).toString(36)).catch(()=>{})}
+else if(!moves().length){ph=3;hap(1,"error")}
+draw()}
+function draw(){
+const mv=ph==1?moves():[],tg=mv.filter(x=>x[0]==sel).map(x=>x[2]);
+sq.forEach((c,i)=>c.className="d"+(has(m,i)?" p":"")+(i==sel?" s":"")+(!blind&&tg.includes(i)?" t":"")+(ph==0&&!blind&&has(m,i)&&!has(L[lv][1],i)?" x":""));
+$("t").textContent=`Level ${lv+1}/${L.length} · ${TN[T[lv]]}${has(solved|chat(),lv)?" ✓":""}`;
+$("p").disabled=!lv;$("n").disabled=lv==L.length-1;$("u").disabled=!hist.length;
+$("l").textContent="Blind: "+(blind?"on":"off");
+$("s").textContent=msg||["Tap a piece to remove it","","Cleared! 🎉","Stuck. Undo or restart"][ph]||cnt(m)+" pieces left";msg=""}
+$("p").onclick=()=>go(-1);$("n").onclick=()=>go(1);$("r").onclick=start;
+$("u").onclick=()=>{if(hist.length){m=hist.pop();ph=hist.length?1:0;sel=-1;draw()}};
+$("l").onclick=()=>{blind=!blind;S.s("b",blind);draw()};
+W.onEvent&&W.onEvent("chatDataChanged",draw);
+start();W.ready&&W.ready();
+</script>

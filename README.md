@@ -25,3 +25,27 @@ The levels came from `tools/levels/search.py`, which tries diamonds, wedges, cro
 The "Blind" button turns off every hint on all levels. Openings that can't be won aren't dimmed or locked, legal landing squares aren't highlighted, and the Hint button is hidden. The setting is saved on the device.
 
 When you change any file, bump the `?v=` number on the asset URLs in `index.html` and `fx.js`. Telegram Desktop keeps old copies otherwise.
+
+## Play in the chat (widget)
+Telegram's Bot API 10.4 lets a bot send a message that is a small interactive HTML app (a "widget"). `widget/` holds Corner Jump as one: all levels, openings, jumps, undo, restart and blind mode, inside the chat bubble. There's no sound (widgets can't play audio), so it uses haptics instead. A button under the widget opens the full mini app.
+
+- `widget/src.html` is the source. Run `python3 tools/widget/build.py` after changing it or the levels in `game.js`. It writes `widget/widget.html` (what gets sent), `widget/preview.html` (open in a browser to check the layout) and `bot/widget.js`, and fails if the widget is over Telegram's limit of 4096 bytes after zlib compression.
+- Progress: cleared levels are remembered on the device. When the bot is running, clearing a level also sends the solved list to the bot, which saves it into that message's chat data, so the ✓ marks show on every device.
+- In production Telegram only allows widgets in private chats with the bot, and they can't be forwarded yet.
+
+### Quick look, no server
+```
+BOT_TOKEN=<token from @BotFather> python3 tools/widget/send.py
+```
+Message the bot once first. The script sends the widget to the last person who messaged it. It only works while the bot has no webhook.
+
+### Run the bot (Cloudflare Worker, free plan)
+`bot/worker.js` answers `/start` and `/play` with the widget and saves progress.
+```
+cd bot
+npx wrangler login
+npx wrangler secret put BOT_TOKEN        # the token from @BotFather
+npx wrangler secret put WEBHOOK_SECRET   # any random string, letters and digits
+npx wrangler deploy
+```
+Then open `https://<your worker address>/setup?key=<WEBHOOK_SECRET>` once in a browser. It points the bot at the worker and adds the /play command. Change `APP_URL` in `bot/wrangler.toml` if the mini app lives somewhere other than GitHub Pages.

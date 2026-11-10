@@ -1,0 +1,7 @@
+name = "corner-jump-bot"
+main = "worker.js"
+compatibility_date = "2026-10-01"
+
+[vars]
+# The mini app's address (GitHub Pages). Used for the "Open full game" button under the widget.
+APP_URL = "https://hen0k.github.io/corner-jump/"
